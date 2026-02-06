@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>We Win Trading Estimate Calculator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<style>
+  body{
+    font-family: Arial, sans-serif;
+    background:#f5f7fb;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+    margin:0;
+    padding:18px;
+  }
+  .card{
+    background:#fff;
+    padding:22px;
+    width:420px;
+    border-radius:12px;
+    box-shadow:0 8px 20px rgba(0,0,0,.12);
+  }
+  h2{
+    text-align:center;
+    margin:0 0 16px 0;
+  }
+  .hint{
+    font-size:12px;
+    opacity:.75;
+    margin-top:-8px;
+    margin-bottom:8px;
+    text-align:center;
+  }
+  label{
+    font-weight:bold;
+    display:block;
+    margin-top:12px;
+  }
+  input{
+    width:100%;
+    padding:10px;
+    margin-top:6px;
+    border-radius:6px;
+    border:1px solid #ccc;
+    box-sizing:border-box;
+  }
+  .rowline{
+    display:flex;
+    gap:10px;
+  }
+  .rowline > div{
+    flex:1;
+  }
+  .toggle{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-top:12px;
+    padding:10px;
+    border:1px solid #e5e7ee;
+    border-radius:10px;
+    background:#fafbff;
+  }
+  .toggle input{
+    width:auto;
+    margin:0;
+    transform:scale(1.1);
+  }
+  button{
+    margin-top:18px;
+    width:100%;
+    padding:12px;
+    border:none;
+    background:#1e6c93;
+    color:white;
+    font-size:16px;
+    border-radius:8px;
+    cursor:pointer;
+  }
+  button:hover{ background:#185776; }
+  .result{
+    margin-top:16px;
+    padding:14px;
+    background:#f1f5ff;
+    border-radius:10px;
+    display:none;
+  }
+  .r{
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:8px;
+  }
+  .r span:first-child{ opacity:.9; }
+  hr{
+    border:none;
+    border-top:1px solid rgba(0,0,0,.12);
+    margin:10px 0;
+  }
+  .strong{
+    font-weight:bold;
+  }
+  .warn{
+    font-size:12px;
+    opacity:.75;
+    margin-top:6px;
+  }
+</style>
+</head>
+
+<body>
+  <div class="card">
+    <h2>We Win Trading Estimate Calculator</h2>
+    <div class="hint">Base Final Charges fixed at 30%. Cashback Programme fee is optional and separate.</div>
+
+    <label>Merchandise Total (RM)</label>
+    <input type="number" id="merch" step="0.01" placeholder="e.g. 10.13" />
+
+    <label>(-) Seller Sponsored Voucher (RM)</label>
+    <input type="number" id="voucher" step="0.01" value="0" placeholder="e.g. 4.00" />
+
+    <div class="rowline">
+      <div>
+        <label>Product Cost (RM)</label>
+        <input type="number" id="cost" step="0.01" placeholder="e.g. 6.20" />
+      </div>
+      <div>
+        <label>Ads Cost (RM)</label>
+        <input type="number" id="ads" step="0.01" value="0" placeholder="e.g. 1.50" />
+      </div>
+    </div>
+
+    <div class="toggle">
+      <input type="checkbox" id="cashbackOn" />
+      <div style="flex:1;">
+        <div class="strong">Enable Cashback Programme</div>
+        <div style="font-size:12px;opacity:.75;">Fee = Selling Price × Cashback Rate (After SST)</div>
+      </div>
+    </div>
+
+    <label>Cashback Programme Rate (After SST) %</label>
+    <input type="number" id="cashbackRate" step="0.01" value="8.10" />
+
+    <button onclick="calculate()">Calculate</button>
+
+    <div class="result" id="result">
+      <div class="r"><span>Selling Price (Merch - Voucher)</span><span id="sellingPrice"></span></div>
+
+      <div class="r"><span>Base Final Charges (30%)</span><span id="baseFee"></span></div>
+      <div class="r"><span>Cashback Programme Fee</span><span id="cashbackFee"></span></div>
+
+      <div class="r"><span>Net Revenue</span><span id="netRevenue"></span></div>
+      <div class="r"><span>Total Cost (Product + Ads)</span><span id="totalCost"></span></div>
+
+      <hr>
+
+      <div class="r strong"><span>Profit</span><span id="profit"></span></div>
+
+      <hr>
+
+      <div class="r strong"><span>Break Even Selling Price</span><span id="beSelling"></span></div>
+      <div class="r strong"><span>Break Even Merchandise Total</span><span id="beMerch"></span></div>
+
+      <div class="warn">
+        Break-even Selling Price means the “Selling Price” after voucher deduction.<br/>
+        Break-even Merchandise Total adds your voucher back (so you know what tag price is needed).
+      </div>
+    </div>
+  </div>
+
+<script>
+  const BASE_RATE = 0.30; // fixed 30%
+
+  function money(n){
+    if (!isFinite(n)) return "RM —";
+    return "RM " + n.toFixed(2);
+  }
+
+  function clampNonNegative(n){
+    if (!isFinite(n)) return 0;
+    return Math.max(0, n);
+  }
+
+  function calculate(){
+    let merch   = clampNonNegative(parseFloat(document.getElementById("merch").value));
+    let voucher = clampNonNegative(parseFloat(document.getElementById("voucher").value));
+    let cost    = clampNonNegative(parseFloat(document.getElementById("cost").value));
+    let ads     = clampNonNegative(parseFloat(document.getElementById("ads").value));
+
+    // Selling Price used for fees (like Shopee example): Merchandise Total - Seller Voucher
+    let selling = merch - voucher;
+    if (selling < 0) selling = 0;
+
+    let cashbackEnabled = document.getElementById("cashbackOn").checked;
+    let cashbackRatePct = clampNonNegative(parseFloat(document.getElementById("cashbackRate").value));
+    let cashbackRate = cashbackEnabled ? (cashbackRatePct / 100) : 0;
+
+    let baseFee = selling * BASE_RATE;
+    let cashbackFee = selling * cashbackRate;
+
+    let netRevenue = selling - baseFee - cashbackFee;
+
+    let totalCost = cost + ads;
+    let profit = netRevenue - totalCost;
+
+    // Break-even:
+    // selling * (1 - BASE_RATE - cashbackRate) = totalCost
+    // selling = totalCost / (1 - BASE_RATE - cashbackRate)
+    let denom = (1 - BASE_RATE - cashbackRate);
+    let beSelling = denom > 0 ? (totalCost / denom) : NaN;
+    let beMerch = isFinite(beSelling) ? (beSelling + voucher) : NaN;
+
+    document.getElementById("sellingPrice").innerText = money(selling);
+    document.getElementById("baseFee").innerText = money(baseFee);
+    document.getElementById("cashbackFee").innerText = money(cashbackFee);
+    document.getElementById("netRevenue").innerText = money(netRevenue);
+    document.getElementById("totalCost").innerText = money(totalCost);
+    document.getElementById("profit").innerText = money(profit);
+    document.getElementById("beSelling").innerText = money(beSelling);
+    document.getElementById("beMerch").innerText = money(beMerch);
+
+    document.getElementById("result").style.display = "block";
+  }
+</script>
+</body>
+</html>
